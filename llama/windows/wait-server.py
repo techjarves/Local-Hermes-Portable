@@ -75,21 +75,30 @@ if model_path:
     except Exception as e:
         print(f"Error syncing Hermes config: {e}")
 
-# Poll the port until it is open (up to 60 seconds)
+# Poll the port until it is open (up to 300 seconds — USB model loads can take
+# 45-120s; never open the browser before the server is actually reachable).
+ready = False
 count = 0
-while count < 120:
+while count < 600:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(0.5)
         s.connect(('127.0.0.1', port))
         s.close()
+        ready = True
         break
     except Exception:
         pass
     time.sleep(0.5)
     count += 1
 
+if not ready:
+    print(f"Warning: server not reachable on port {port} after 300s.")
+
 if auto_launch:
+    if not ready:
+        print(f"Server not ready yet. Once it is up, open http://localhost:{port} manually.")
+        sys.exit(0)
     browser_url = f"http://localhost:{port}"
     startup_prompt = os.path.join(project_root, "models", ".startup-prompt")
     if os.path.isfile(startup_prompt) and os.path.getsize(startup_prompt) > 0:

@@ -52,7 +52,7 @@ echo Installing packages...
 rem 1b. Check and install VC++ Redistributable if missing
 set VC_REDIST_URL=https://aka.ms/vs/17/release/vc_redist.x64.exe
 set VC_REDIST_NAME=vc_redist.x64.exe
-if defined ProgramFiles(Arm) (
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set VC_REDIST_URL=https://aka.ms/vs/17/release/vc_redist.arm64.exe
     set VC_REDIST_NAME=vc_redist.arm64.exe
 )
@@ -114,7 +114,7 @@ rem 2b. Download/Update llmfit based on architecture
 set LLMFIT_ARCH=x64
 set LLMFIT_ZIP_URL=https://github.com/AlexsJones/llmfit/releases/download/v0.9.34/llmfit-v0.9.34-x86_64-pc-windows-msvc.zip
 
-if defined ProgramFiles(Arm) (
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
     set LLMFIT_ARCH=arm64
     set LLMFIT_ZIP_URL=https://github.com/AlexsJones/llmfit/releases/download/v0.9.34/llmfit-v0.9.34-aarch64-pc-windows-msvc.zip
 )
@@ -145,12 +145,17 @@ if exist "%PROJECT_ROOT%\llama\windows\bin\llmfit.zip" (
 
 :skip_llmfit_download
 
-rem 2c. Check if llama-server supports --cache-ssd option
+rem 2c. Check which optional llama-server flags are supported (CachyLLama extensions)
 set "CACHE_ARG="
+set "UI_MCP_ARG="
 if not exist "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" goto :skip_cache_check
 "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" --help 2>&1 | findstr /C:"--cache-ssd" >nul
 if %ERRORLEVEL% equ 0 (
     set CACHE_ARG=--cache-ssd "%PROJECT_ROOT%\llama\kv-cache"
+)
+"%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" --help 2>&1 | findstr /C:"--ui-mcp-proxy" >nul
+if %ERRORLEVEL% equ 0 (
+    set UI_MCP_ARG=--ui-mcp-proxy
 )
 :skip_cache_check
 
@@ -296,7 +301,7 @@ if %ERRORLEVEL% equ 0 (
     )
     start /B "" "%PROJECT_ROOT%\llama\windows\python\python.exe" "%PROJECT_ROOT%\llama\windows\wait-server.py" 9090 %AUTO_LAUNCH_BROWSER% "%DEFAULT_MODEL%"
     echo Starting server on http://localhost:9090...
-    "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" -m "%DEFAULT_MODEL%" -c %LLAMA_CTX_SIZE% -np %LLAMA_SLOTS% -ngl %LLAMA_GPU_LAYERS% --cache-type-k q8_0 --cache-type-v q8_0 --host 0.0.0.0 --port 9090 --ui-mcp-proxy %CACHE_ARG%
+    "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" -m "%DEFAULT_MODEL%" -c %LLAMA_CTX_SIZE% -np %LLAMA_SLOTS% -ngl %LLAMA_GPU_LAYERS% --cache-type-k q8_0 --cache-type-v q8_0 --host 0.0.0.0 --port 9090 %UI_MCP_ARG% %CACHE_ARG%
 )
 exit /b 0
 
@@ -349,5 +354,5 @@ if %ERRORLEVEL% equ 0 (
     )
     start /B "" "%PROJECT_ROOT%\llama\windows\python\python.exe" "%PROJECT_ROOT%\llama\windows\wait-server.py" 9090 %AUTO_LAUNCH_BROWSER% "%PROJECT_ROOT%\models\%MODEL_NAME%.gguf"
     echo Starting server on http://localhost:9090...
-    "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" -m "models\%MODEL_NAME%.gguf" -c %LLAMA_CTX_SIZE% -np %LLAMA_SLOTS% -ngl %LLAMA_GPU_LAYERS% --cache-type-k q8_0 --cache-type-v q8_0 --host 0.0.0.0 --port 9090 --ui-mcp-proxy %CACHE_ARG%
+    "%PROJECT_ROOT%\llama\windows\bin\llama-server.exe" -m "models\%MODEL_NAME%.gguf" -c %LLAMA_CTX_SIZE% -np %LLAMA_SLOTS% -ngl %LLAMA_GPU_LAYERS% --cache-type-k q8_0 --cache-type-v q8_0 --host 0.0.0.0 --port 9090 %UI_MCP_ARG% %CACHE_ARG%
 )
